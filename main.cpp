@@ -11,10 +11,12 @@ int main() {
     unsigned int RUNS = 100;
 
     uint64_t times[RUNS];
-    for (int run = 1; run <= RUNS; run++) {
-        unsigned int NUM = 100000;
+    unsigned collisions = 0;
+    for (int run = 0; run < RUNS; run++) {
+        unsigned int NUM = 1000;
 
-        auto hashes = new string[NUM];
+        auto hashes = new bool[NUM];
+        for (int i = 0; i < NUM; i++) hashes[i] = false;
 
         uint64_t start = currentTime();
 
@@ -24,7 +26,10 @@ int main() {
             str.copy(c, str.size() + 1);
             c[str.size()] = '\0';
 
-            hashes[i] = Chocobo1::MD5().addData(c, str.size()).finalize().toString();
+            string hash = Chocobo1::CRC_32().addData(c, str.size()).finalize().toString();
+            unsigned long long index = stoll(hash.substr(hash.size() - 8), 0, 16) % NUM;
+            if (!hashes[index]) hashes[index] = true;
+            else collisions++;
         }
 
         uint64_t end = currentTime();
@@ -35,10 +40,9 @@ int main() {
 
     uint64_t sum = 0;
     for (uint64_t time : times) sum += time;
-    uint64_t avg = sum / RUNS;
-    double sec = avg / 1000000000.0;
 
-    cout << sec << endl;
+    cout << sum / RUNS << endl;
+    cout << collisions / RUNS << endl;
 
     return 0;
 }
