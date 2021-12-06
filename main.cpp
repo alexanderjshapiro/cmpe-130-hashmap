@@ -7,42 +7,62 @@ uint64_t currentTime() {
     return chrono::duration_cast<chrono::nanoseconds>(chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
 
+string hashString(string key) {
+    char c[key.size() + 1];
+    key.copy(c, key.size() + 1);
+    c[key.size()] = '\0';
+    return Chocobo1::CRC_32 ().addData(c, key.size()).finalize().toString();
+}
+
 int main() {
-    unsigned int RUNS = 100;
+    const unsigned int NUMBER_OF_RUNS = 100;
+    const unsigned int TABLE_SIZE = 1000;
+    const double LOAD_FACTOR = 0.75;
 
-    uint64_t times[RUNS];
-    unsigned collisions = 0;
-    for (int run = 0; run < RUNS; run++) {
-        unsigned int NUM = 1000;
+    const unsigned int MAX_SIZE = int(TABLE_SIZE * LOAD_FACTOR);
 
-        auto hashes = new bool[NUM];
-        for (int i = 0; i < NUM; i++) hashes[i] = false;
+    uint64_t time = 0;
+    unsigned int collisions = 0;
 
-        uint64_t start = currentTime();
+    for (unsigned int run = 0; run < NUMBER_OF_RUNS; run++) {
+        auto table = new string[TABLE_SIZE];
 
-        for (int i = 0; i < NUM; i++) {
-            string str = to_string(currentTime());
-            char c[str.size() + 1];
-            str.copy(c, str.size() + 1);
-            c[str.size()] = '\0';
+        auto keys = new string[MAX_SIZE];
+        for (int i = 0; i < MAX_SIZE; i++) keys[i] = to_string(random());
 
-            string hash = Chocobo1::CRC_32().addData(c, str.size()).finalize().toString();
-            unsigned long long index = stoll(hash.substr(hash.size() - 8), 0, 16) % NUM;
-            if (!hashes[index]) hashes[index] = true;
-            else collisions++;
+        // Start timer
+        uint64_t startTime = currentTime();
+
+        for (int i = 0; i < MAX_SIZE; i++) {
+            string key = keys[i];
+
+            string hash = hashString(key);
+
+            bool done = false;
+
+            for (unsigned int attempt = 0; !done; attempt++) {
+                unsigned long long shortHash = stoll(hash.substr(hash.size() - 8), nullptr, 16);
+                unsigned int index = shortHash % TABLE_SIZE;
+                if (table[index].empty()) {
+                    table[index] = key;
+                    done = true;
+                }
+                else collisions++;
+            }
+
         }
 
-        uint64_t end = currentTime();
-        uint64_t duration = end - start;
-
-        times[run] = duration;
+        // End timer
+        uint64_t endTime = currentTime();
+        uint64_t duration = endTime - startTime;
+        time += duration;
     }
 
-    uint64_t sum = 0;
-    for (uint64_t time : times) sum += time;
+    time /= NUMBER_OF_RUNS;
+    collisions /= NUMBER_OF_RUNS;
 
-    cout << sum / RUNS << endl;
-    cout << collisions / RUNS << endl;
+    cout << time << endl;
+    cout << collisions << endl;
 
     return 0;
 }
